@@ -84,6 +84,32 @@ pub fn recv_from(socket: CSocket,
         Ok(len as usize)
     }
 }
+pub fn recv_from_non_blocking(socket: CSocket,
+                 buffer: &mut [u8],
+                 caddr: *mut SockAddrStorage)
+    -> io::Result<Option<usize>> {
+    let mut caddrlen = mem::size_of::<SockAddrStorage>() as SockLen;
+    let len = imp::to_opt(&mut || unsafe {
+        imp::recvfrom(
+            socket,
+            buffer.as_ptr() as MutBuf,
+            buffer.len() as BufLen,
+            libc::O_NONBLOCK,
+            caddr as *mut SockAddr,
+            &mut caddrlen
+        )
+    });
+    
+    match len {
+        Some(len) => if len < 0 {
+            Err(io::Error::last_os_error()) 
+        } else {
+            Ok(Some(len as usize))
+        }
+        None => Ok(None)
+    }
+}
+// pub fn recv_from_opt(socket: CSocket, buffer: &mut [u8], caddr &*mut SockAddrStorage) -> Option<Result
 
 
 
