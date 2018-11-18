@@ -104,6 +104,16 @@ pub fn retry<F>(f: &mut F) -> libc::ssize_t
     }
 }
 
+#[inline]
+pub fn to_opt<F>(f: &mut F) -> Option<libc::ssize_t> where F: FnMut() -> libc::ssize_t {
+    let ret = f();
+    if ret != -1 || errno() as isize != libc::EINTR as isize {
+        Some(ret)
+    } else {
+        None
+    }
+}
+
 fn errno() -> i32 {
     io::Error::last_os_error().raw_os_error().unwrap()
 }
