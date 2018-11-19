@@ -380,3 +380,11 @@ macro_rules! transport_channel_non_blocking_iterator {
 }
 
 transport_channel_non_blocking_iterator!(Ipv4Packet, Ipv4TransportChannelNBIterator, ipv4_packet_nb_iter);
+
+transport_channel_non_blocking_iterator!(UdpPacket, UdpTransportChannelNBIterator, udp_packet_nb_iter);
+
+transport_channel_non_blocking_iterator!(IcmpPacket, IcmpTransportChannelNBIterator, icmp_packet_nb_iter);
+
+transport_channel_non_blocking_iterator!(Icmpv6Packet, Icmpv6TransportChannelNBIterator, icmpv6_packet_nb_iter);
+
+transport_channel_non_blocking_iterator!(TcpPacket, TcpTransportChannelNBIterator, tcp_packet_nb_iter);
