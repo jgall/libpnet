@@ -84,6 +84,7 @@ pub fn recv_from(socket: CSocket,
         Ok(len as usize)
     }
 }
+
 pub fn recv_from_non_blocking(socket: CSocket,
                  buffer: &mut [u8],
                  caddr: *mut SockAddrStorage)
@@ -94,7 +95,7 @@ pub fn recv_from_non_blocking(socket: CSocket,
             socket,
             buffer.as_ptr() as MutBuf,
             buffer.len() as BufLen,
-            libc::O_NONBLOCK,
+            imp::NON_BLOCKING_FLAG,
             caddr as *mut SockAddr,
             &mut caddrlen
         )
@@ -109,10 +110,6 @@ pub fn recv_from_non_blocking(socket: CSocket,
         None => Ok(None)
     }
 }
-// pub fn recv_from_opt(socket: CSocket, buffer: &mut [u8], caddr &*mut SockAddrStorage) -> Option<Result
-
-
-
 
 // These functions are taken/adapted from libnative::io::{mod, net}
 

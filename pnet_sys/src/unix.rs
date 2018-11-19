@@ -104,8 +104,11 @@ pub fn retry<F>(f: &mut F) -> libc::ssize_t
     }
 }
 
+pub const NON_BLOCKING_FLAG: libc::c_int = libc::O_NONBLOCK;
+
 #[inline]
-pub fn to_opt<F>(f: &mut F) -> Option<libc::ssize_t> where F: FnMut() -> libc::ssize_t {
+pub fn to_opt<F>(f: &mut F) -> Option<libc::ssize_t> where F: FnMut() -> libc::ssize_t 
+    {
     let ret = f();
     let err = errno();
     if ret != -1 || err as isize != libc::EINTR as isize || err as isize != libc::EWOULDBLOCK as isize {

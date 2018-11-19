@@ -105,6 +105,19 @@ pub fn retry<F>(f: &mut F) -> libc::c_int
     }
 }
 
+pub const NON_BLOCKING_FLAG: libc::c_int = winapi::FIONBIO as libc::c_int;
+
+#[inline]
+pub fn to_opt<F>(f: &mut F) -> Option<libc::c_int> where F: FnMut() -> libc::c_int 
+    {
+    let ret = f();
+    let err = errno();
+    if ret != -1 || err as isize != winapi::WSAEINTR as isize || err as isize != winapi::WSAEWOULDBLOCK as isize {
+        Some(ret)
+    } else {
+        None
+    }
+}
 
 fn errno() -> i32 {
     io::Error::last_os_error().raw_os_error().unwrap()
