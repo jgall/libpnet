@@ -297,3 +297,86 @@ transport_channel_iterator!(IcmpPacket, IcmpTransportChannelIterator, icmp_packe
 transport_channel_iterator!(Icmpv6Packet, Icmpv6TransportChannelIterator, icmpv6_packet_iter);
 
 transport_channel_iterator!(TcpPacket, TcpTransportChannelIterator, tcp_packet_iter);
+
+#[macro_export]
+macro_rules! transport_channel_non_blocking_iterator {
+    ($ty:ident, $iter:ident, $func:ident) => (
+        /// An iterator over packets of type $ty
+        pub struct $iter<'a> {
+            tr: &'a mut TransportReceiver
+        }
+        /// Return a packet iterator with packets of type $ty for some transport receiver
+        pub fn $func(tr: &mut TransportReceiver) -> $iter {
+            $iter {
+                tr: tr
+            }
+        }
+        impl<'a> $iter<'a> {
+            /// Get the next ($ty, IpAddr) pair for the given channel
+            pub fn next(&mut self) -> Option<io::Result<($ty, IpAddr)>> {
+
+                #[cfg(any(target_os = "freebsd", target_os = "macos"))]
+                fn fixup_packet(buffer: &mut [u8]) {
+                    use pnet_packet::ipv4::MutableIpv4Packet;
+
+                    let buflen = buffer.len();
+                    let mut new_packet = MutableIpv4Packet::new(buffer).unwrap();
+
+                    let length = u16::from_be(new_packet.get_total_length());
+                    new_packet.set_total_length(length);
+
+                    // OS X does this awesome thing where it removes the header length
+                    // from the total length sometimes.
+                    let length = new_packet.get_total_length() as usize +
+                                 (new_packet.get_header_length() as usize * 4usize);
+                    if length == buflen {
+                        new_packet.set_total_length(length as u16)
+                    }
+
+                    let offset = u16::from_be(new_packet.get_fragment_offset());
+                    new_packet.set_fragment_offset(offset);
+                }
+
+                #[cfg(all(not(target_os = "freebsd"), not(target_os = "macos")))]
+                fn fixup_packet(_buffer: &mut [u8]) {}
+
+                let mut caddr: pnet_sys::SockAddrStorage = unsafe { mem::zeroed() };
+                let res = pnet_sys::recv_from_non_blocking(self.tr.socket.fd,
+                                              &mut self.tr.buffer[..],
+                                              &mut caddr);
+                res.map(move |res| {
+                    let offset = match self.tr.channel_type {
+                        Layer4(Ipv4(_)) => {
+                            let ip_header = Ipv4Packet::new(&self.tr.buffer[..]).unwrap();
+
+                            ip_header.get_header_length() as usize * 4usize
+                        },
+                        Layer3(_) => {
+                            fixup_packet(&mut self.tr.buffer[..]);
+
+                            0
+                        },
+                        _ => 0
+                    };
+                    return match res {
+                        Ok(len) => {
+                            let packet = $ty::new(&self.tr.buffer[offset..len]).unwrap();
+                            let addr = pnet_sys::sockaddr_to_addr(
+                                &caddr,
+                                mem::size_of::<pnet_sys::SockAddrStorage>()
+                            );
+                            let ip = match addr.unwrap() {
+                                net::SocketAddr::V4(sa) => IpAddr::V4(*sa.ip()),
+                                net::SocketAddr::V6(sa) => IpAddr::V6(*sa.ip()),
+                            };
+                            Ok((packet, ip))
+                        },
+                        Err(e) => Err(e),
+                    };
+                })
+            }
+        }
+    )
+}
+
+transport_channel_non_blocking_iterator!(Ipv4Packet, Ipv4TransportChannelNBIterator, ipv4_packet_nb_iter);

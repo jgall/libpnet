@@ -88,7 +88,7 @@ pub fn recv_from(socket: CSocket,
 pub fn recv_from_non_blocking(socket: CSocket,
                  buffer: &mut [u8],
                  caddr: *mut SockAddrStorage)
-    -> io::Result<Option<usize>> {
+    -> Option<io::Result<usize>> {
     let mut caddrlen = mem::size_of::<SockAddrStorage>() as SockLen;
     let len = imp::to_opt(&mut || unsafe {
         imp::recvfrom(
@@ -100,15 +100,11 @@ pub fn recv_from_non_blocking(socket: CSocket,
             &mut caddrlen
         )
     });
-    
-    match len {
-        Some(len) => if len < 0 {
-            Err(io::Error::last_os_error()) 
-        } else {
-            Ok(Some(len as usize))
-        }
-        None => Ok(None)
-    }
+    len.map(|len| if len < 0 { 
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(len as usize)
+    })
 }
 
 // These functions are taken/adapted from libnative::io::{mod, net}
